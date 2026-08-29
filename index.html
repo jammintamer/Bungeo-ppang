@@ -1,0 +1,1212 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>붕어빵 타이쿤</title>
+    <style>
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: 'Malgun Gothic', Arial, sans-serif;
+            text-align: center; margin: 0; padding: 8px;
+            background-color: #2c3e50;
+            background-image:
+                radial-gradient(circle at 20% 15%, rgba(255,183,77,0.28) 0%, transparent 45%),
+                radial-gradient(circle at 82% 78%, rgba(255,112,67,0.22) 0%, transparent 50%),
+                linear-gradient(160deg, #3e2723 0%, #2c3e50 55%, #1b2733 100%);
+            background-attachment: fixed;
+            user-select: none; -webkit-user-select: none;
+            overflow-x: hidden; overflow-y: auto; min-height: 100vh;
+        }
+
+        /* ── 음소거 버튼 ── */
+        #mute-btn {
+            position: fixed; top: 10px; right: 12px; z-index: 300;
+            width: 40px; height: 40px; border-radius: 50%;
+            background: rgba(255,255,255,0.93); border: 2px solid #aaa;
+            font-size: 18px; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+            display: flex; align-items: center; justify-content: center;
+            transition: transform .15s, background .15s; touch-action: manipulation;
+        }
+        #mute-btn:hover { transform: scale(1.12); background:#fff3e0; border-color:#ff5722; }
+
+        /* ── 대시보드 ── */
+        .dashboard {
+            display: grid; grid-template-columns: repeat(4,1fr);
+            align-items: center; background: rgba(255,255,255,0.95);
+            padding: 8px 4px; border-radius: 10px; font-weight: bold;
+            font-size: 15px; margin-bottom: 6px; box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        .dashboard-item { display: flex; flex-direction: column; align-items: center; color: #333; gap: 2px; }
+        .highlight { color: #d32f2f; font-size: 18px; }
+
+        /* ── 상태바 (라이프 + 콤보) ── */
+        #status-bar {
+            display: flex; align-items: center; justify-content: space-between;
+            background: rgba(255,255,255,0.9); border-radius: 10px;
+            padding: 6px 14px; margin-bottom: 8px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2); min-height: 44px;
+        }
+        #lives-display { display: flex; gap: 4px; align-items: center; font-size: 26px; transition: transform .15s; }
+        #lives-label { font-size: 12px; font-weight: bold; color: #666; margin-right: 4px; }
+
+        #combo-container {
+            display: none; flex-direction: column; align-items: flex-end; gap: 2px;
+        }
+        #combo-header { display: flex; align-items: center; gap: 8px; }
+        #combo-text  { font-size: 15px; font-weight: bold; color: #e65100; }
+        #combo-tip-text { font-size: 12px; font-weight: bold; color: #2e7d32;
+                          background: #e8f5e9; padding: 2px 7px; border-radius: 10px; border: 1px solid #4caf50; }
+        #combo-bar-wrap {
+            width: 160px; height: 7px; background: #ddd; border-radius: 4px; overflow: hidden;
+        }
+        #combo-bar { height: 100%; background: #ff9800; border-radius: 4px; transition: width .1s linear; }
+
+        /* ── 손님 ── */
+        #customers-container {
+            display: flex; justify-content: center; flex-wrap: wrap;
+            gap: 8px; min-height: 140px; margin-bottom: 10px;
+        }
+        .customer-card {
+            background: rgba(255,243,224,0.95); padding: 8px; border-radius: 10px; width: 120px;
+            display: flex; flex-direction: column; align-items: center; cursor: pointer;
+            transition: transform .1s; box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            border: 3px solid transparent; touch-action: manipulation;
+        }
+        .customer-card:hover { transform: translateY(-3px); }
+        .char-icon {
+            width: 60px; height: 60px; border-radius: 50%; font-size: 38px;
+            display: flex; align-items: center; justify-content: center; margin-bottom: 4px;
+            box-shadow: inset 0 0 8px rgba(0,0,0,0.1); border: 2px solid #555; overflow: hidden;
+        }
+        .char-icon img { width:100%; height:100%; object-fit:cover; border-radius:50%; pointer-events:none; }
+        .timer-container { width:100%; height:7px; background:#ddd; border-radius:4px; overflow:hidden; margin-bottom:4px; }
+        .timer-bar { height:100%; width:100%; background:#4caf50; }
+        .customer-order { font-size:12px; font-weight:bold; background:white; padding:4px; border-radius:5px; width:100%; text-align:center; word-break:keep-all; }
+
+        /* ── 인벤토리 ── */
+        #inventory-zone {
+            background: rgba(200,230,201,0.95); padding: 10px 12px; border-radius: 10px;
+            margin-bottom: 10px; display: flex; align-items: center; gap: 8px;
+            min-height: 44px; flex-wrap: wrap; justify-content: center;
+        }
+        .trash-btn { background:#f44336; color:white; border:none; padding:8px 12px; border-radius:5px; cursor:pointer; font-weight:bold; font-size:13px; flex-shrink:0; touch-action:manipulation; }
+        #inventory-list { display:flex; gap:5px; flex-wrap:wrap; justify-content:center; }
+        .inventory-item {
+            width:50px; height:50px; display:flex; flex-direction:column; align-items:center;
+            justify-content:center; font-size:11px; font-weight:bold; background:white;
+            border-radius:8px; padding:3px; cursor:pointer; transition:.1s; border:3px solid transparent;
+            touch-action:manipulation;
+        }
+        .inventory-item.selected { border-color:#f44336; transform:scale(1.1); box-shadow:0 0 8px #f44336; }
+        .inventory-item img { width:100%; height:100%; object-fit:contain; border-radius:4px; pointer-events:none; }
+
+        /* ── 게임 영역 ── */
+        #game-area { display:flex; justify-content:center; gap:16px; max-width:1100px; margin:0 auto; align-items:flex-start; }
+        #tools-panel { display:flex; flex-direction:column; gap:8px; background:rgba(255,255,255,0.85); padding:10px; border-radius:15px; border:3px solid #795548; flex-shrink:0; }
+        .tool-btn { width:60px; height:60px; border-radius:12px; background:white; border:4px solid transparent; cursor:pointer; display:flex; align-items:center; justify-content:center; touch-action:manipulation; }
+        .tool-btn.active { border-color:#ff5722; background:#fff3e0; }
+        .tool-btn img { width:100%; height:100%; object-fit:contain; }
+
+        /* ── 틀 그리드 (9개 3×3) ── */
+        .molds-grid {
+            display:grid; grid-template-columns:repeat(3,1fr); gap:16px 24px;
+            background-image:
+                repeating-linear-gradient(90deg, rgba(0,0,0,0.18) 0px, rgba(0,0,0,0.18) 3px, transparent 3px, transparent 26px),
+                linear-gradient(180deg, #6d4c41 0%, #4e342e 55%, #3e2723 100%);
+            padding:20px; border-radius:15px; flex-grow:1; border:5px solid #3e2723;
+        }
+        .mold {
+            width:108px; height:78px; margin:4px auto; position:relative; cursor:pointer;
+            border-radius:52% 48% 46% 54% / 62% 58% 42% 38%;
+            background:
+                repeating-linear-gradient(135deg,rgba(255,255,255,0.05) 0px,rgba(255,255,255,0.05) 2px,transparent 2px,transparent 7px),
+                radial-gradient(ellipse at 32% 28%,#5a5a5a 0%,#333 45%,#161616 100%);
+            box-shadow:inset 0 6px 10px rgba(0,0,0,0.65),inset 0 -4px 8px rgba(255,255,255,0.06),0 3px 5px rgba(0,0,0,0.35);
+            border:3px solid #100f0f; display:flex; align-items:center; justify-content:center;
+            transition:transform .15s ease; touch-action:manipulation;
+        }
+        .mold:hover { transform:translateY(-2px) scale(1.02); }
+        .mold::before {
+            content:''; position:absolute; right:-13px; top:50%; transform:translateY(-50%);
+            width:0; height:0; border-style:solid; border-width:10px 0 10px 14px;
+            border-color:transparent transparent transparent #2c2c2c;
+            filter:drop-shadow(1px 1px 1px rgba(0,0,0,.5));
+        }
+        .mold.batter-filled {
+            background:
+                repeating-linear-gradient(135deg,rgba(255,255,255,0.08) 0px,rgba(255,255,255,0.08) 2px,transparent 2px,transparent 7px),
+                radial-gradient(ellipse at 32% 28%,#ffd54f 0%,#fbc02d 55%,#f57f17 100%);
+            box-shadow:inset 0 4px 8px rgba(0,0,0,0.35),inset 0 -3px 6px rgba(255,255,255,0.25),0 3px 5px rgba(0,0,0,0.35);
+        }
+        .mold.batter-filled::before { border-color:transparent transparent transparent #f9a825; }
+        .mold.dusty::after { content:'먼지! (클릭)'; position:absolute; inset:0; background:rgba(158,158,158,0.9); color:white; border-radius:52% 48% 46% 54% / 62% 58% 42% 38%; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:bold; z-index:10; text-align:center; padding:0 5px; }
+        .mold.broken { background:repeating-linear-gradient(135deg,rgba(255,255,255,0.05) 0px,rgba(255,255,255,0.05) 2px,transparent 2px,transparent 7px),radial-gradient(ellipse at 32% 28%,#b71c1c 0%,#7f0000 55%,#4a0000 100%); animation:shake .5s infinite; }
+        .mold.broken::before { border-color:transparent transparent transparent #7f0000; }
+        @keyframes shake { 0%{transform:translateX(0)} 25%{transform:translateX(-3px)} 75%{transform:translateX(3px)} 100%{transform:translateX(0)} }
+
+        .mold-content { z-index:2; display:flex; flex-direction:column; align-items:center; justify-content:center; pointer-events:none; }
+        .mold-content img.filling-img { width:40px; height:40px; object-fit:cover; border-radius:50%; border:2px solid white; background:white; }
+        .mold-content img.bread-img { width:94px; height:66px; object-fit:contain; filter:drop-shadow(0 3px 4px rgba(0,0,0,.45)); }
+        .baking-text { font-size:20px; font-weight:bold; color:#d32f2f; background:rgba(255,255,255,0.8); padding:4px; border-radius:8px; }
+        .burnt-img { filter:brightness(0.2) grayscale(100%) !important; }
+        .fallback-emoji { display:flex; align-items:center; justify-content:center; width:100%; height:100%; font-size:20px; }
+
+        /* ── 모달 ── */
+        #modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.8); display:flex; align-items:center; justify-content:center; z-index:200; padding:16px; }
+        .modal-box { background:white; padding:30px 24px; border-radius:20px; text-align:center; width:100%; max-width:440px; box-shadow:0 10px 30px rgba(0,0,0,0.5); }
+        .modal-title { font-size:28px; font-weight:bold; color:#ff5722; margin-bottom:16px; }
+        .modal-desc  { font-size:17px; margin-bottom:24px; color:#555; white-space:pre-line; }
+        .modal-btn-group { display:flex; gap:12px; justify-content:center; margin-bottom:12px; }
+        .modal-btn { flex:1; background:#4caf50; color:white; border:none; padding:14px; font-size:16px; font-weight:bold; border-radius:10px; cursor:pointer; transition:.2s; touch-action:manipulation; }
+        .modal-btn.endless { background:#9c27b0; }
+        .modal-btn.info    { background:#ff9800; width:100%; flex:none; }
+        .modal-btn:hover   { filter:brightness(0.9); transform:scale(1.04); }
+        .instruction-box { text-align:left; max-height:45vh; overflow-y:auto; background:#f9f9f9; padding:12px; border-radius:10px; margin-bottom:16px; font-size:13px; line-height:1.6; }
+        .instruction-box ul { padding-left:18px; margin:0; }
+        .instruction-box li { margin-bottom:7px; }
+
+        /* ── 파티클 / 말풍선 ── */
+        .particle { position:fixed; pointer-events:none; font-size:22px; z-index:999; }
+        .speech-bubble { position:fixed; z-index:1000; pointer-events:none; font-size:12px; font-weight:bold; padding:7px 11px; border-radius:12px; max-width:160px; line-height:1.4; text-align:center; word-break:keep-all; box-shadow:0 4px 10px rgba(0,0,0,0.3); }
+        .speech-bubble::after { content:''; position:absolute; bottom:-8px; left:50%; transform:translateX(-50%); border-width:8px 6px 0 6px; border-style:solid; }
+        .speech-bubble.happy  { background:#e8f5e9; color:#1b5e20; border:2px solid #4caf50; }
+        .speech-bubble.happy::after  { border-color:#4caf50 transparent transparent transparent; }
+        .speech-bubble.angry  { background:#ffebee; color:#b71c1c; border:2px solid #f44336; }
+        .speech-bubble.angry::after  { border-color:#f44336 transparent transparent transparent; }
+        .speech-bubble.combo  { background:#fff8e1; color:#e65100; border:2px solid #ff9800; }
+        .speech-bubble.combo::after  { border-color:#ff9800 transparent transparent transparent; }
+
+        /* ── 라이프 잃을 때 흔들림 ── */
+        @keyframes heartShake {
+            0%{transform:scale(1)} 20%{transform:scale(1.35) rotate(-8deg)} 40%{transform:scale(1.2) rotate(6deg)} 60%{transform:scale(1.1) rotate(-4deg)} 80%{transform:scale(1.05) rotate(2deg)} 100%{transform:scale(1)}
+        }
+        .heart-shake { animation: heartShake 0.5s ease; }
+
+        /* ══ 모바일 반응형 ══ */
+        @media (max-width:700px) {
+            body { padding:5px; }
+            .dashboard { grid-template-columns:repeat(2,1fr); font-size:12px; padding:6px 4px; gap:3px; }
+            .highlight { font-size:14px; }
+            #status-bar { padding:5px 10px; }
+            #lives-display { font-size:22px; }
+            #combo-bar-wrap { width:120px; }
+            #combo-text { font-size:13px; }
+            .customer-card { width:95px; padding:6px; }
+            .char-icon { width:50px; height:50px; font-size:30px; }
+            .customer-order { font-size:10px; }
+            #customers-container { min-height:110px; gap:5px; }
+            .inventory-item { width:44px; height:44px; font-size:10px; }
+            #game-area { flex-direction:column; align-items:center; gap:10px; }
+            #tools-panel { flex-direction:row; gap:8px; padding:8px; }
+            .tool-btn { width:52px; height:52px; border-radius:10px; }
+            .molds-grid { gap:10px 14px; padding:14px; width:min(94vw,380px); }
+            .mold { width:88px; height:64px; }
+            .mold-content img.filling-img { width:32px; height:32px; }
+            .mold-content img.bread-img   { width:76px; height:54px; }
+            .baking-text { font-size:16px; }
+            .mold::before { right:-10px; border-width:8px 0 8px 11px; }
+            .modal-box { padding:20px 16px; }
+            .modal-title { font-size:22px; }
+            .modal-desc  { font-size:14px; }
+            .modal-btn   { font-size:14px; padding:12px; }
+        }
+        @media (max-width:360px) {
+            .molds-grid { gap:8px 10px; padding:10px; }
+            .mold { width:78px; height:57px; }
+            .mold-content img.bread-img { width:68px; height:48px; }
+            .customer-card { width:84px; }
+        }
+    </style>
+</head>
+<body>
+
+<button id="mute-btn" onclick="toggleMute()" title="음소거">🔊</button>
+
+<!-- ── 모달 ── -->
+<div id="modal-overlay">
+    <div class="modal-box" id="main-modal">
+        <div class="modal-title" id="modal-title">🐟 붕어빵 타이쿤</div>
+        <div class="modal-desc"  id="modal-desc">원하는 모드를 선택하세요!</div>
+        <div class="modal-btn-group" id="modal-btn-group">
+            <button class="modal-btn"         onclick="startGame('stage')">스테이지 모드</button>
+            <button class="modal-btn endless" onclick="startGame('endless')">무한 모드</button>
+        </div>
+        <button class="modal-btn info" id="desc-btn" onclick="showDescription()">게임 설명</button>
+        <button class="modal-btn" id="modal-single-btn" style="display:none;width:100%;margin-top:10px;" onclick="startStage()">다음</button>
+    </div>
+
+    <div class="modal-box" id="desc-modal" style="display:none;max-width:500px;">
+        <h2 style="color:#ff5722;margin-top:0;">게임 설명</h2>
+        <div class="instruction-box">
+            <h3 style="color:#4caf50;margin-top:0;">목표 : 붕어빵을 팔아서 부자가 되어라!</h3>
+            <p style="margin:6px 0;font-size:13px;color:#555;">
+                ❤️ <b>라이프:</b> 3개로 시작. 손님이 화내며 떠나거나 잘못 주면 -1. 0개가 되면 게임 오버!<br>
+                🔥 <b>콤보:</b> 주문보다 <b>더</b> 줄 때마다 콤보+1. 5초 유지. 콤보당 팁 +500원!<br>
+                🍕 <b>피자</b> 속재료도 생겼어요!
+            </p>
+            <h3 style="color:#333;margin-bottom:8px;">[손님 특징]</h3>
+            <ul>
+                <li><b>아줌마:</b> 먼저 주지 않으면 무조건 삐지며 가버린다.</li>
+                <li><b>유치원생:</b> 요구한 것보다 덤으로 하나 더 줘야 한다.</li>
+                <li><b>미녀 아가씨:</b> 있는 동안 다른 남자 손님들은 화를 내지 않는다.</li>
+                <li><b>할아버지:</b> 탄 거 주면 울먹인다.</li>
+                <li><b>뚱띵:</b> 뭐든 받지만 수량은 맞춰야 한다.</li>
+                <li><b>변덕쟁이 청년:</b> 주문 개수를 멋대로 바꾼다.</li>
+                <li><b>깡패:</b> 만족 못 시키면 틀을 망가뜨리고 손님도 쫓아버린다. (망가진 틀은 <b>50번</b> 연타해야 수리!)</li>
+                <li><b>거지:</b> 돈을 받지 않고, 만족 못 시키면 먼지를 날린다.</li>
+                <li><b>붕어빵신사:</b> O의 개수가 곧 붕어빵 개수다.</li>
+                <li><b>외계인:</b> 항상 정확히 3개를 줘야 한다.</li>
+            </ul>
+        </div>
+        <button class="modal-btn" style="width:100%;" onclick="hideDescription()">닫기</button>
+    </div>
+</div>
+
+<!-- ── 대시보드 ── -->
+<div class="dashboard">
+    <div class="dashboard-item">🚩 모드<br><span class="highlight" id="ui-stage">대기중</span></div>
+    <div class="dashboard-item">⏳ 시간<br><span class="highlight" id="ui-time">0초</span></div>
+    <div class="dashboard-item">🎯 목표<br><span class="highlight" id="ui-target">0원</span></div>
+    <div class="dashboard-item">💰 점수<br><span class="highlight" id="score" style="color:#4caf50;">0원</span></div>
+</div>
+
+<!-- ── 상태바: 라이프 + 콤보 ── -->
+<div id="status-bar">
+    <!-- 라이프 -->
+    <div style="display:flex;align-items:center;gap:4px;">
+        <span id="lives-label" style="font-size:12px;font-weight:bold;color:#666;">HP</span>
+        <div id="lives-display">❤️❤️❤️</div>
+    </div>
+    <!-- 콤보 -->
+    <div id="combo-container">
+        <div id="combo-header">
+            <span id="combo-text">🔥 콤보 ×0</span>
+            <span id="combo-tip-text">+0원 팁</span>
+        </div>
+        <div id="combo-bar-wrap"><div id="combo-bar" style="width:100%;height:7px;background:#ff9800;border-radius:4px;"></div></div>
+    </div>
+</div>
+
+<!-- ── 손님 ── -->
+<div id="customers-container"></div>
+
+<!-- ── 인벤토리 ── -->
+<div id="inventory-zone">
+    <button class="trash-btn" onclick="trashSelected(event)">🗑️ 버리기</button>
+    <div id="inventory-list"></div>
+</div>
+
+<!-- ── 게임 영역 ── -->
+<div id="game-area">
+    <div id="tools-panel">
+        <div class="tool-btn active" id="tool-팥"    onclick="selectTool('팥')"><img src="/assets/filling-red-bean.png"   data-fallback="🫘" onerror="handleImageError(this)"></div>
+        <div class="tool-btn"        id="tool-슈크림" onclick="selectTool('슈크림')"><img src="/assets/filling-shu-cream.png"  data-fallback="🍦" onerror="handleImageError(this)"></div>
+        <div class="tool-btn"        id="tool-민초"   onclick="selectTool('민초')"><img src="/assets/filling-mint-choco.png" data-fallback="🌿" onerror="handleImageError(this)"></div>
+        <div class="tool-btn"        id="tool-피자"   onclick="selectTool('피자')"><img src="/assets/filling-pizza.png"     data-fallback="🍕" onerror="handleImageError(this)"></div>
+    </div>
+    <div class="molds-grid" id="molds-container"></div>
+</div>
+
+<script>
+// ════════════════════════════════════════
+//  모달 제어
+// ════════════════════════════════════════
+function showDescription() { document.getElementById('main-modal').style.display='none'; document.getElementById('desc-modal').style.display='block'; }
+function hideDescription() { document.getElementById('main-modal').style.display='block'; document.getElementById('desc-modal').style.display='none'; }
+
+// ════════════════════════════════════════
+//  말풍선
+// ════════════════════════════════════════
+function spawnSpeechBubble(x, y, text, type='happy') {
+    const b = document.createElement('div');
+    b.className = `speech-bubble ${type}`; b.innerText = text;
+    b.style.left = x+'px'; b.style.top = y+'px';
+    b.style.transform = 'translate(-50%,-100%)';
+    document.body.appendChild(b);
+    b.animate([
+        {transform:'translate(-50%,-100%) scale(0.8)',opacity:0},
+        {transform:'translate(-50%,-120%) scale(1)',  opacity:1, offset:.15},
+        {transform:'translate(-50%,-140%) scale(1)',  opacity:1, offset:.8},
+        {transform:'translate(-50%,-160%) scale(0.9)',opacity:0}
+    ],{duration:1600,easing:'ease-out'});
+    setTimeout(()=>b.remove(),1600);
+}
+
+// ════════════════════════════════════════
+//  Web Audio
+// ════════════════════════════════════════
+let audioCtx, isMuted=false, bgmGain, bgmNodes=[], bgmScheduler=null;
+
+function initAudio() {
+    if (!audioCtx) {
+        audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+        bgmGain = audioCtx.createGain();
+        bgmGain.gain.value = 0.18;
+        bgmGain.connect(audioCtx.destination);
+    }
+    if (audioCtx.state==='suspended') audioCtx.resume();
+}
+function toggleMute() {
+    isMuted=!isMuted;
+    document.getElementById('mute-btn').textContent = isMuted?'🔇':'🔊';
+    if (bgmGain) bgmGain.gain.value = isMuted?0:0.18;
+}
+function playTone(freq,type,duration,vol=0.1) {
+    if (!audioCtx||isMuted) return;
+    const o=audioCtx.createOscillator(),g=audioCtx.createGain();
+    o.type=type; o.frequency.setValueAtTime(freq,audioCtx.currentTime);
+    g.gain.setValueAtTime(vol,audioCtx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.01,audioCtx.currentTime+duration);
+    o.connect(g); g.connect(audioCtx.destination);
+    o.start(); o.stop(audioCtx.currentTime+duration);
+}
+function playBakeSound()  { playTone(150,'sawtooth',.1,.05); }
+function playServeSound() { playTone(600,'sine',.1,.1); setTimeout(()=>playTone(800,'sine',.15,.1),100); }
+function playFailSound()  { playTone(200,'square',.3,.1); }
+function playComboSound() {
+    // 콤보 알림음: 상승 음계
+    const freqs=[440,550,660,880];
+    freqs.forEach((f,i)=>setTimeout(()=>playTone(f,'sine',.12,.08),i*60));
+}
+
+// ═══════════════════════════════════════════════════════
+//  BGM : 신나는 장터 음악 (A장조, 150 BPM, 6레이어)
+//  - 메인 멜로디  : square wave (밝고 날카로운)
+//  - 옥타브 하모니 : triangle  (멜로디 2배 주파수, 부드럽게 쌓임)
+//  - 뽕짝 베이스  : sawtooth  (oom-pah-pah 리듬)
+//  - 아르페지오   : triangle  (16분음표 빠른 분산화음)
+//  - 코드 스탭   : square     (박자마다 강한 타격)
+//  - 드럼       : noise kick snare hihat
+// ═══════════════════════════════════════════════════════
+const T = 0.10; // 150 BPM 16분음표 = 100ms
+
+// A장조: A4=440 B4=494 C#5=554 D5=587 E5=659 F#5=740 G#5=831 A5=880
+//        A3=220 E3=165 D3=147 A2=110
+const MELODY = [
+    // ①강렬한 도입 - 높이서 들어오기
+    [880,1],[740,1],[659,1],[587,1],[880,2],[659,2],
+    // ②빠른 음계 하강
+    [587,1],[659,1],[740,1],[880,1],[740,1],[659,1],[587,1],[494,1],
+    // ③16분음표 달리기 (오르막)
+    [440,1],[494,1],[554,1],[587,1],[659,1],[740,1],[880,1],[0,1],
+    // ④숨고르기 (하강 카스케이드)
+    [880,2],[740,2],[659,2],[587,2],
+    // ⑤스타카토 타격 (긴장)
+    [880,1],[0,1],[880,1],[0,1],[740,1],[0,1],[880,1],[0,1],
+    // ⑥해결 (긴 음)
+    [659,2],[587,2],[494,4],
+    // ⑦재상승 (클라이맥스 재현)
+    [440,1],[494,1],[554,1],[587,1],[659,1],[740,1],[880,2],
+    // ⑧루프 연결 (부드럽게 착지)
+    [880,2],[740,2],[659,2],[440,2],
+];
+// 총 64유닛 × 0.10 = 6.4초 루프
+
+// 뽕짝 베이스 (oom-pah-pah 패턴)
+// A2=110, E3=165, D3=147, A3=220
+const BASS = [
+    [110,4],[165,2],[165,2],   // oom-pah-pah (A)
+    [110,2],[165,2],[110,2],[165,2],
+    [110,4],[147,4],           // A → D
+    [147,2],[165,2],[110,4],   // D→E→A
+    [110,4],[165,2],[165,2],   // A (반복)
+    [165,4],[165,4],           // E 유지
+    [110,2],[147,2],[165,2],[110,2], // A-D-E-A
+    [110,8],                   // A 해결
+];
+
+// 빠른 아르페지오 (A major 분산화음, 16분음표마다)
+// A4-E5-A5-E5 순환
+const ARPEGGIO_NOTES = [440, 659, 880, 659];
+
+// 드럼 버퍼 캐시
+let _hihatBuf = null;
+function getHihatBuf() {
+    if (!_hihatBuf) {
+        const len = Math.ceil(audioCtx.sampleRate * 0.028);
+        _hihatBuf = audioCtx.createBuffer(1, len, audioCtx.sampleRate);
+        const d = _hihatBuf.getChannelData(0);
+        for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    }
+    return _hihatBuf;
+}
+
+function schedHihat(t, vol) {
+    const src = audioCtx.createBufferSource();
+    src.buffer = getHihatBuf();
+    const hpf = audioCtx.createBiquadFilter();
+    hpf.type = 'highpass'; hpf.frequency.value = 8000;
+    const g = audioCtx.createGain();
+    g.gain.setValueAtTime(vol, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.020);
+    src.connect(hpf); hpf.connect(g); g.connect(bgmGain);
+    src.start(t); bgmNodes.push(src, hpf, g);
+}
+
+function schedKick(t) {
+    const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(220, t);
+    o.frequency.exponentialRampToValueAtTime(30, t + 0.20);
+    g.gain.setValueAtTime(0.70, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+    o.connect(g); g.connect(bgmGain);
+    o.start(t); o.stop(t + 0.28);
+    bgmNodes.push(o, g);
+}
+
+function schedSnare(t) {
+    const bufLen = Math.ceil(audioCtx.sampleRate * 0.085);
+    const buf = audioCtx.createBuffer(1, bufLen, audioCtx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < bufLen; i++) d[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufLen * 0.22));
+    const src = audioCtx.createBufferSource(); src.buffer = buf;
+    const g = audioCtx.createGain();
+    g.gain.setValueAtTime(0.28, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.085);
+    src.connect(g); g.connect(bgmGain);
+    src.start(t); bgmNodes.push(src, g);
+}
+
+function startBGM() {
+    if (!audioCtx) return; stopBGM();
+    _hihatBuf = null; // 새 AudioContext에 맞게 버퍼 재생성
+
+    const loopLen = MELODY.reduce((s, n) => s + n[1], 0) * T; // 6.4초
+    const beat   = T * 4;  // 4분음표 0.40s
+    const eighth = T * 2;  // 8분음표 0.20s
+
+    function scheduleLoop(st) {
+        // ① 메인 멜로디 (square, 밝고 날카로운 비트게임 느낌)
+        let t = st;
+        MELODY.forEach(([f, b]) => {
+            const dur = b * T;
+            if (f > 0) {
+                const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+                o.type = 'square';
+                o.frequency.setValueAtTime(f, t);
+                g.gain.setValueAtTime(0, t);
+                g.gain.linearRampToValueAtTime(0.55, t + 0.006);
+                g.gain.setValueAtTime(0.55, t + dur - 0.018);
+                g.gain.linearRampToValueAtTime(0, t + dur - 0.006);
+                o.connect(g); g.connect(bgmGain);
+                o.start(t); o.stop(t + dur);
+                bgmNodes.push(o, g);
+            }
+            t += dur;
+        });
+
+        // ② 옥타브 하모니 (triangle, 멜로디 2배 주파수, 반음량)
+        // → 소리가 두텁고 더 꽉 차 들림
+        t = st;
+        MELODY.forEach(([f, b]) => {
+            const dur = b * T;
+            if (f > 0) {
+                const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+                o.type = 'triangle';
+                o.frequency.setValueAtTime(f * 2, t);
+                g.gain.setValueAtTime(0, t);
+                g.gain.linearRampToValueAtTime(0.22, t + 0.006);
+                g.gain.setValueAtTime(0.22, t + dur - 0.018);
+                g.gain.linearRampToValueAtTime(0, t + dur - 0.006);
+                o.connect(g); g.connect(bgmGain);
+                o.start(t); o.stop(t + dur);
+                bgmNodes.push(o, g);
+            }
+            t += dur;
+        });
+
+        // ③ 뽕짝 베이스 (sawtooth, 전기베이스 느낌)
+        t = st;
+        BASS.forEach(([f, b]) => {
+            const dur = b * T;
+            if (f > 0) {
+                const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+                o.type = 'sawtooth';
+                o.frequency.setValueAtTime(f, t);
+                // 뽕짝: 시작에 펀치, 빠르게 감쇄
+                g.gain.setValueAtTime(0, t);
+                g.gain.linearRampToValueAtTime(0.50, t + 0.010);
+                g.gain.exponentialRampToValueAtTime(0.25, t + dur * 0.5);
+                g.gain.exponentialRampToValueAtTime(0.001, t + dur * 0.92);
+                o.connect(g); g.connect(bgmGain);
+                o.start(t); o.stop(t + dur);
+                bgmNodes.push(o, g);
+            }
+            t += dur;
+        });
+
+        // ④ 빠른 아르페지오 (triangle, 16분음표마다 A장조 분산화음)
+        // → 배경을 꽉 채워 "신나는 장터" 느낌
+        for (let i = 0; i < 64; i++) {
+            const at = st + i * T;
+            const freq = ARPEGGIO_NOTES[i % ARPEGGIO_NOTES.length];
+            const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+            o.type = 'triangle';
+            o.frequency.setValueAtTime(freq, at);
+            g.gain.setValueAtTime(0, at);
+            g.gain.linearRampToValueAtTime(0.14, at + 0.005);
+            g.gain.exponentialRampToValueAtTime(0.001, at + T * 0.85);
+            o.connect(g); g.connect(bgmGain);
+            o.start(at); o.stop(at + T);
+            bgmNodes.push(o, g);
+        }
+
+        // ⑤ 코드 스탭 (박 1, 박 3마다 Am7 화음 강타)
+        // A장조 토닉 코드: A4(440), C#5(554), E5(659)
+        for (let bar = 0; bar < 8; bar++) {
+            const bs = st + bar * beat * 2;
+            [[440,554,659],[440,554,659]].forEach((chord, ci) => {
+                const ct = bs + ci * beat;
+                chord.forEach(f => {
+                    const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+                    o.type = 'square';
+                    o.frequency.setValueAtTime(f, ct);
+                    g.gain.setValueAtTime(0, ct);
+                    g.gain.linearRampToValueAtTime(0.09, ct + 0.006);
+                    g.gain.exponentialRampToValueAtTime(0.001, ct + T * 1.5);
+                    o.connect(g); g.connect(bgmGain);
+                    o.start(ct); o.stop(ct + T * 1.8);
+                    bgmNodes.push(o, g);
+                });
+            });
+        }
+
+        // ⑥ 드럼 : 킥(1·3박) + 스네어(2·4박) + 하이햇(전 8분음표)
+        for (let ti = st; ti < st + loopLen - 0.05; ti += beat * 2) {
+            schedKick(ti);               // 박 1
+            schedSnare(ti + beat);       // 박 2
+            schedKick(ti + beat * 2);    // 박 3
+            schedSnare(ti + beat * 3);   // 박 4
+        }
+        for (let ti = st; ti < st + loopLen - 0.03; ti += eighth) {
+            const onBeat = Math.abs((ti - st) % beat) < 0.015;
+            schedHihat(ti, onBeat ? 0.09 : 0.05);
+        }
+    }
+
+    let loopStart = audioCtx.currentTime + 0.05;
+    scheduleLoop(loopStart);
+
+    bgmScheduler = setInterval(() => {
+        loopStart += loopLen;
+        scheduleLoop(loopStart);
+        bgmNodes = bgmNodes.filter(n => {
+            try { return n.context && n.context.state !== 'closed'; } catch(e) { return false; }
+        });
+    }, loopLen * 1000 - 200);
+}
+function stopBGM() { clearInterval(bgmScheduler);bgmScheduler=null; bgmNodes.forEach(n=>{try{n.disconnect();}catch(e){}}); bgmNodes=[]; }
+
+// ── 파티클 ──
+function spawnParticles(x,y,ok) {
+    const sym=ok?'🪙':'💢';
+    for(let i=0;i<10;i++){
+        const p=document.createElement('div'); p.innerText=sym; p.className='particle';
+        p.style.left=(x-11)+'px'; p.style.top=(y-11)+'px'; document.body.appendChild(p);
+        const a=Math.random()*Math.PI*2, v=30+Math.random()*40;
+        p.animate([{transform:`translate(0,0) scale(1)`,opacity:1},{transform:`translate(${Math.cos(a)*v}px,${Math.sin(a)*v-30}px) scale(0)`,opacity:0}],{duration:500+Math.random()*300,easing:'cubic-bezier(0,.9,.57,1)'});
+        setTimeout(()=>p.remove(),800);
+    }
+}
+function spawnComboParticles(x,y) {
+    ['🔥','⭐','✨'].forEach((sym,idx)=>{
+        setTimeout(()=>{
+            const p=document.createElement('div'); p.innerText=sym; p.className='particle';
+            p.style.left=(x-11+idx*15)+'px'; p.style.top=(y-20)+'px'; document.body.appendChild(p);
+            p.animate([{transform:`translate(0,0) scale(1.4)`,opacity:1},{transform:`translate(${(idx-1)*20}px,-60px) scale(0)`,opacity:0}],{duration:700,easing:'ease-out'});
+            setTimeout(()=>p.remove(),700);
+        },idx*60);
+    });
+}
+function handleImageError(el) { el.outerHTML=`<div class="fallback-emoji">${el.getAttribute('data-fallback')||'🐟'}</div>`; }
+
+// ════════════════════════════════════════
+//  게임 데이터
+// ════════════════════════════════════════
+const flavorData = {
+    '팥':   {url:'/assets/filling-red-bean.png',   emoji:'🫘'},
+    '슈크림':{url:'/assets/filling-shu-cream.png',  emoji:'🍦'},
+    '민초':  {url:'/assets/filling-mint-choco.png', emoji:'🌿'},
+    '피자':  {url:'/assets/filling-pizza.png',      emoji:'🍕'}
+};
+const imgCompleted = 'https://mgx-backend-cdn.metadl.com/generate/images/1563675/2026-08-28/vmolgaqcakka/bungeoppang-completed.png';
+
+const charTypes = [
+    {id:'아줌마',  emoji:'👩',  img:'https://mgx-backend-cdn.metadl.com/generate/images/1563675/2026-08-28/vmolgnicakjq/customer-ajumma.png',   bg:'#f48fb1',time:30,  buyMsg:'어머, 맛있겠네! 먼저 줘서 고마워요~',        angryMsg:'흥! 날 무시해? 딴 데 갈 거야!'},
+    {id:'유치원생',emoji:'🧒',  img:'https://mgx-backend-cdn.metadl.com/generate/images/1563675/2026-08-28/vmolg4acakma/customer-kid.png',       bg:'#ffe082',time:37.5,buyMsg:'와아! 덤까지 줬다! 아저씨 최고!',            angryMsg:'으앙! 너무 늦어! 삐졌어!'},
+    {id:'미녀아가씨',emoji:'👩‍🦰',img:'https://mgx-backend-cdn.metadl.com/generate/images/1563675/2026-08-28/vmolhkycaklq/customer-lady.png',    bg:'#ce93d8',time:45,  buyMsg:'호호, 맛있게 잘 먹을게요~ 감사합니다!',     angryMsg:'어머, 너무 오래 기다렸네요. 실망이에요.'},
+    {id:'할아버지',emoji:'👴',  img:'https://mgx-backend-cdn.metadl.com/generate/images/1563675/2026-08-28/vmolhxycakkq/customer-grandpa.png', bg:'#bcaaa4',time:52.5,buyMsg:'허허, 노릇노릇 참 잘 구웠구먼. 고맙네.',     angryMsg:'훌쩍... 너무 늦는구먼... (울먹)', burntMsg:'훌쩍... 탄 걸 주다니 너무하네... (울먹)'},
+    {id:'뚱띵',    emoji:'😋',  img:'https://mgx-backend-cdn.metadl.com/generate/images/1563675/2026-08-28/vmoligicakka/customer-glutton.png', bg:'#ffcc80',time:37.5,buyMsg:'우걱우걱! 역시 한입에 털어넣어야 제맛이지!',  angryMsg:'배고파 죽겠는데 왜 안 줘! 딴 데 간다!'},
+    {id:'변덕쟁이',emoji:'👱‍♂️',img:'https://mgx-backend-cdn.metadl.com/generate/images/1563675/2026-08-28/vmoliticakjq/customer-fickle.png', bg:'#90caf9',time:30,  buyMsg:'오 굿! 딱 내가 원하던 맛이에요~',           angryMsg:'아 왜 이렇게 느려요? 그냥 갈래요!'},
+    {id:'깡패',    emoji:'🕶️', img:'https://mgx-backend-cdn.metadl.com/generate/images/1563675/2026-08-28/vmoljaacakma/customer-thug.png',    bg:'#ef9a9a',time:27,  buyMsg:'오냐, 제법이군... 장사 똑바로 해라!',       angryMsg:'야!! 장사 이따위로 할래?! 다 엎어버려!!'},
+    {id:'거지',    emoji:'🧥',  img:'https://mgx-backend-cdn.metadl.com/generate/images/1563675/2026-08-28/vmoljmycaklq/customer-beggar.png', bg:'#b0bec5',time:45,  buyMsg:'헤헤... 따뜻한 붕어빵 고맙소... 복 받을 거요.', angryMsg:'에이취!! 에취!! (먼지 펄펄)'},
+    {id:'신사',    emoji:'🎩',  img:'https://mgx-backend-cdn.metadl.com/generate/images/1563675/2026-08-28/vmoljzycakla/customer-gentleman.png',bg:'#eeeeee',time:37.5,buyMsg:'O! OO! 아주 훌륭합니다. Good!',             angryMsg:'o... O... 예의가 없으시군요. Good bye.'},
+    {id:'외계인',  emoji:'👽',  img:'https://mgx-backend-cdn.metadl.com/generate/images/1563675/2026-08-28/vmolkiicakkq/customer-alien.png',   bg:'#a5d6a7',time:45,  buyMsg:'삐리리- 지구 붕어빵 데이터 수집 완료. 맛있다.', angryMsg:'삐빅- 인내심 한계 도달. 외계로 귀환한다!'}
+];
+const stageConfigs=[
+    {time:60,target:1500, maxCust:3},{time:60,target:3000, maxCust:3},{time:60,target:4500, maxCust:4},
+    {time:60,target:6000, maxCust:4},{time:60,target:7500, maxCust:4},{time:60,target:9000, maxCust:5},
+    {time:60,target:11000,maxCust:5},{time:60,target:13000,maxCust:5},{time:60,target:15000,maxCust:5},
+    {time:60,target:18000,maxCust:5}
+];
+
+// ════════════════════════════════════════
+//  게임 상태
+// ════════════════════════════════════════
+let gameMode='stage', currentStage=0, score=0, stageTimeLeft=0;
+let isPlaying=false, gameLoopInterval=null, spawnInterval=null, gameGen=0;
+let inventory=[], customers=[], currentTool='팥', nextInvId=0;
+
+// ── 신규: 라이프 & 콤보 ──
+const MAX_LIVES = 3;
+const COMBO_DURATION = 5.0; // 초
+let lives = MAX_LIVES;
+let combo = 0;
+let comboTimeLeft = 0;
+let gameOverByLives = false;
+
+const MOLD_COUNT = 9;
+let molds = makeMolds();
+function makeMolds() { return Array.from({length:MOLD_COUNT},()=>({state:0,flavor:null,timer:null,burnTimer:null,dusty:false,fixCount:0})); }
+
+// ════════════════════════════════════════
+//  라이프 & 콤보 UI
+// ════════════════════════════════════════
+function updateStatusBar() {
+    // 하트 렌더링
+    const el = document.getElementById('lives-display');
+    let html = '';
+    for (let i=0; i<MAX_LIVES; i++) html += (i<lives ? '❤️' : '🖤');
+    el.innerHTML = html;
+
+    // 콤보 렌더링
+    const cc = document.getElementById('combo-container');
+    if (combo > 0) {
+        cc.style.display = 'flex';
+        document.getElementById('combo-text').textContent     = `🔥 콤보 ×${combo}`;
+        document.getElementById('combo-tip-text').textContent = `+${combo*500}원 팁`;
+        const pct = Math.max(0,(comboTimeLeft/COMBO_DURATION)*100);
+        const bar = document.getElementById('combo-bar');
+        bar.style.width = pct+'%';
+        bar.style.background = pct>50?'#ff9800':'#f44336';
+    } else {
+        cc.style.display = 'none';
+    }
+}
+
+function loseLife(x, y) {
+    if (!isPlaying) return;
+    lives = Math.max(0, lives-1);
+
+    // 하트 흔들림 애니메이션
+    const el = document.getElementById('lives-display');
+    el.classList.remove('heart-shake');
+    void el.offsetWidth; // reflow to restart animation
+    el.classList.add('heart-shake');
+    setTimeout(()=>el.classList.remove('heart-shake'), 600);
+
+    if (x !== undefined) spawnParticles(x, y, false);
+    updateStatusBar();
+
+    if (lives <= 0) {
+        gameOverByLives = true;
+        endStage();
+    }
+}
+
+function triggerCombo(x, y) {
+    combo++;
+    comboTimeLeft = COMBO_DURATION;
+    playComboSound();
+    if (x !== undefined) spawnComboParticles(x, y);
+    updateStatusBar();
+}
+
+// ════════════════════════════════════════
+//  매칭 헬퍼
+// ════════════════════════════════════════
+// 정확히 일치 (순서 무관)
+function checkExactMatch(given, order) {
+    if (given.length!==order.length) return false;
+    const t=[...order];
+    for (const g of given) { const i=t.indexOf(g); if(i===-1) return false; t.splice(i,1); }
+    return true;
+}
+// 포함 확인: given이 required를 모두 포함하면 OK (초과 허용)
+function checkContainsAll(given, required) {
+    const t=[...given];
+    for (const r of required) { const i=t.indexOf(r); if(i===-1) return false; t.splice(i,1); }
+    return true;
+}
+
+// ════════════════════════════════════════
+//  게임 흐름
+// ════════════════════════════════════════
+function init() { renderMolds(); updateStatusBar(); }
+
+function startGame(mode) { gameMode=mode; if(mode==='stage') currentStage=0; startStage(); }
+
+function startStage() {
+    initAudio();
+    document.getElementById('modal-overlay').style.display='none';
+    gameGen++; score=0; inventory=[]; customers=[];
+    lives=MAX_LIVES; combo=0; comboTimeLeft=0; gameOverByLives=false;
+    molds.forEach(m=>{clearTimeout(m.timer);clearTimeout(m.burnTimer);}); molds=makeMolds();
+
+    const isSt=gameMode==='stage';
+    const cfg=isSt?stageConfigs[currentStage]:null;
+    stageTimeLeft=isSt?cfg.time:120;
+    const maxCust=isSt?cfg.maxCust:5;
+
+    updateDashboard(); updateStatusBar(); renderMolds(); renderInventory(); renderCustomers();
+    isPlaying=true;
+    clearInterval(gameLoopInterval); clearInterval(spawnInterval);
+    spawnInterval=setInterval(()=>{if(isPlaying&&customers.length<maxCust)generateCustomer();},3000);
+    gameLoopInterval=setInterval(updateGameLoop,100);
+    startBGM();
+}
+
+function endStage() {
+    isPlaying=false;
+    clearInterval(gameLoopInterval); clearInterval(spawnInterval);
+    stopBGM();
+
+    const ov=document.getElementById('modal-overlay');
+    const mT=document.getElementById('modal-title');
+    const mD=document.getElementById('modal-desc');
+    const mBG=document.getElementById('modal-btn-group');
+    const mSB=document.getElementById('modal-single-btn');
+    const mDB=document.getElementById('desc-btn');
+
+    ov.style.display='flex'; mBG.style.display='none';
+    mDB.style.display='none'; mSB.style.display='inline-block';
+
+    if (gameOverByLives) {
+        // ── 라이프 소진 게임오버 ──
+        playFailSound();
+        mT.innerText='💔 라이프 소진!'; mT.style.color='#f44336';
+        mD.innerText=`라이프가 모두 없어졌어요!\n최종 점수: ${score}원`;
+        mSB.innerText='처음으로 돌아가기'; mSB.onclick=showMainMenu;
+        return;
+    }
+
+    if (gameMode==='stage') {
+        const cfg=stageConfigs[currentStage];
+        if (score>=cfg.target) {
+            playServeSound();
+            if (currentStage>=9) {
+                mT.innerText='🎉 게임 올클리어!'; mT.style.color='#4caf50';
+                mD.innerText=`축하합니다! 10단계 모두 정복!\n최종 점수: ${score}원`;
+                mSB.innerText='처음으로'; mSB.onclick=showMainMenu;
+            } else {
+                currentStage++;
+                mT.innerText=`✅ ${currentStage}단계 클리어!`; mT.style.color='#4caf50';
+                mD.innerText=`목표 달성!\n다음 목표: ${stageConfigs[currentStage].target}원`;
+                mSB.innerText='다음 단계'; mSB.onclick=startStage;
+            }
+        } else {
+            playFailSound();
+            mT.innerText='😢 게임 오버'; mT.style.color='#f44336';
+            mD.innerText=`시간 초과!\n${score}원 / 목표 ${cfg.target}원`;
+            mSB.innerText='처음으로'; mSB.onclick=showMainMenu;
+        }
+    } else {
+        playFailSound();
+        mT.innerText='무한 모드 종료'; mT.style.color='#9c27b0';
+        mD.innerText=`최종 점수: ${score}원`;
+        mSB.innerText='처음으로'; mSB.onclick=showMainMenu;
+    }
+}
+
+function showMainMenu() {
+    document.getElementById('modal-title').innerText  ='🐟 붕어빵 타이쿤';
+    document.getElementById('modal-title').style.color='#ff5722';
+    document.getElementById('modal-desc').innerText   ='원하는 모드를 선택하세요!';
+    document.getElementById('modal-btn-group').style.display ='flex';
+    document.getElementById('desc-btn').style.display         ='inline-block';
+    document.getElementById('modal-single-btn').style.display ='none';
+}
+
+// ── 목표 달성 즉시 자동 스테이지 전환 ──
+function autoAdvanceStage() {
+    isPlaying = false;
+    clearInterval(gameLoopInterval); clearInterval(spawnInterval);
+    stopBGM();
+
+    const isFinal = (currentStage >= 9);
+    const stageNum = currentStage + 1; // 표시용 (1~10)
+
+    // 클리어 오버레이 생성
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:500;background:rgba(0,0,0,0.35);';
+
+    if (isFinal) {
+        overlay.innerHTML = `
+            <div style="background:linear-gradient(135deg,#1b5e20,#4caf50);color:white;font-size:30px;font-weight:bold;padding:32px 52px;border-radius:24px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.55);">
+                🎉 게임 올클리어!<br>
+                <span style="font-size:20px;">10단계 모두 정복!</span><br>
+                <span style="font-size:16px;opacity:0.9;">최종 점수: ${score}원</span>
+            </div>`;
+        document.body.appendChild(overlay);
+        overlay.animate([{opacity:0,transform:'scale(0.7)'},{opacity:1,transform:'scale(1)'}],{duration:350,fill:'forwards'});
+        // 올클리어 후 메인메뉴로
+        setTimeout(() => {
+            overlay.animate([{opacity:1},{opacity:0}],{duration:400,fill:'forwards'});
+            setTimeout(() => {
+                overlay.remove();
+                showMainMenu();
+                document.getElementById('modal-overlay').style.display = 'flex';
+            }, 400);
+        }, 2800);
+    } else {
+        currentStage++; // 다음 단계로 증가
+        const nextTarget = stageConfigs[currentStage].target;
+        overlay.innerHTML = `
+            <div style="background:linear-gradient(135deg,#1b5e20,#4caf50);color:white;font-size:26px;font-weight:bold;padding:28px 46px;border-radius:24px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.55);">
+                ✅ ${stageNum}단계 클리어!<br>
+                <span style="font-size:17px;">다음 목표: ${nextTarget.toLocaleString()}원</span><br>
+                <span style="font-size:13px;opacity:0.85;margin-top:4px;display:block;">잠시 후 자동으로 시작됩니다...</span>
+            </div>`;
+        document.body.appendChild(overlay);
+        overlay.animate([{opacity:0,transform:'scale(0.7)'},{opacity:1,transform:'scale(1)'}],{duration:350,fill:'forwards'});
+        // 2초 후 다음 스테이지 자동 시작
+        setTimeout(() => {
+            overlay.animate([{opacity:1},{opacity:0}],{duration:300,fill:'forwards'});
+            setTimeout(() => { overlay.remove(); startStage(); }, 300);
+        }, 2000);
+    }
+
+    // 클리어 효과음 (팡파레)
+    if (audioCtx) {
+        const fanfare = [523,659,784,1047];
+        fanfare.forEach((f,i) => setTimeout(() => {
+            if (!isMuted) playTone(f,'sine',0.3,0.12);
+        }, i*120));
+    }
+}
+
+function updateDashboard() {
+    if (gameMode==='stage') {
+        document.getElementById('ui-stage').innerText  =`${currentStage+1}/10`;
+        document.getElementById('ui-target').innerText =(stageConfigs[currentStage]?.target||'?')+'원';
+    } else {
+        document.getElementById('ui-stage').innerText  ='무한';
+        document.getElementById('ui-target').innerText ='∞';
+    }
+    document.getElementById('ui-time').innerText=Math.ceil(stageTimeLeft)+'초';
+    document.getElementById('score').innerText  =score+'원';
+}
+
+// ════════════════════════════════════════
+//  손님 생성 / 렌더링
+// ════════════════════════════════════════
+function generateCustomer() {
+    const char=charTypes[Math.floor(Math.random()*charTypes.length)];
+    const n=Math.floor(Math.random()*3)+1;
+    const flavors=Object.keys(flavorData); // 팥/슈크림/민초/피자
+    const order=Array.from({length:n},()=>flavors[Math.floor(Math.random()*flavors.length)]);
+    customers.push({uid:Date.now(),type:char.id,info:char,order,time:char.time,maxTime:char.time});
+    renderCustomers();
+}
+
+function getOrderText(c) {
+    if (c.type==='신사')    return Array(c.order.length).fill('O').join(' ')+' o 주세요';
+    if (c.type==='외계인')  return '삐리빅- (3개 줘)';
+    if (c.type==='유치원생') return c.order.map(f=>f[0]).join('+')+' (덤 줘요!)';
+    if (c.type==='뚱띵')    return c.order.length+'개 다 먹어!';
+    return c.order.map(f=>f[0]).join('+')+' 주세요';
+}
+
+function renderCustomers() {
+    const ct=document.getElementById('customers-container'); ct.innerHTML='';
+    customers.forEach(c=>{
+        const card=document.createElement('div');
+        card.className='customer-card'; card.id=`cust-${c.uid}`;
+        card.onclick=e=>serveCustomer(c.uid,e);
+        card.innerHTML=`
+            <div class="timer-container"><div class="timer-bar" id="timer-${c.uid}"></div></div>
+            <div class="char-icon" style="background:radial-gradient(circle,#fff,${c.info.bg})">
+                <img src="${c.info.img}" alt="${c.type}" data-fallback="${c.info.emoji}" onerror="handleImageError(this)">
+            </div>
+            <div class="customer-order" style="color:${c.type==='아줌마'?'red':'#222'}">${c.type}<br>${getOrderText(c)}</div>`;
+        ct.appendChild(card);
+    });
+}
+
+// ════════════════════════════════════════
+//  게임 루프
+// ════════════════════════════════════════
+function updateGameLoop() {
+    if (!isPlaying) return;
+    stageTimeLeft-=0.1; updateDashboard();
+    if (stageTimeLeft<=0) { endStage(); return; }
+
+    // 콤보 타이머
+    if (comboTimeLeft>0) {
+        comboTimeLeft-=0.1;
+        if (comboTimeLeft<=0) { combo=0; comboTimeLeft=0; }
+        updateStatusBar();
+    }
+
+    const hasBeauty=customers.some(c=>c.type==='미녀아가씨');
+    for (let i=customers.length-1; i>=0; i--) {
+        const c=customers[i];
+        const isMale=['할아버지','뚱띵','변덕쟁이','깡패','거지','신사'].includes(c.type);
+        if (!(hasBeauty&&isMale)) c.time-=0.1;
+
+        if (c.type==='변덕쟁이'&&Math.random()<.01) {
+            const fl=Object.keys(flavorData);
+            c.order=Array.from({length:Math.floor(Math.random()*3)+1},()=>fl[Math.floor(Math.random()*fl.length)]);
+            renderCustomers();
+        }
+
+        const bar=document.getElementById(`timer-${c.uid}`);
+        if (bar) {
+            const pct=c.time/c.maxTime;
+            bar.style.width=pct*100+'%';
+            bar.style.background=pct>0.5?'#4caf50':pct>0.25?'#ff9800':'#f44336';
+        }
+
+        if (c.time<=0) {
+            playFailSound();
+            const el=document.getElementById(`cust-${c.uid}`);
+            if (el) { const r=el.getBoundingClientRect(); spawnSpeechBubble(r.left+r.width/2,r.top,c.info.angryMsg,'angry'); }
+
+            // ── 라이프 -1 (손님 이탈) ──
+            loseLife();
+            if (!isPlaying) return; // 라이프 0 → 게임오버
+
+            if (c.type==='깡패') {
+                customers=[];
+                const valid=molds.map((m,idx)=>({m,idx})).filter(x=>x.m.state!=='broken');
+                if (valid.length>0){const t=valid[Math.floor(Math.random()*valid.length)].idx;molds[t].state='broken';molds[t].fixCount=50;}
+                renderMolds(); renderCustomers(); break;
+            } else if (c.type==='거지') {
+                molds.forEach(m=>{if(m.state!=='broken')m.dusty=true;}); renderMolds();
+            }
+            customers.splice(i,1); renderCustomers();
+        }
+    }
+}
+
+// ════════════════════════════════════════
+//  손님 서빙
+// ════════════════════════════════════════
+function serveCustomer(cUid, event) {
+    if (!isPlaying) return;
+    let ci=customers.findIndex(c=>c.uid===cUid);
+    let c=customers[ci];
+    const sel=inventory.filter(i=>i.selected);
+    if (!sel.length) return;
+    const given=sel.map(i=>i.flavor);
+
+    // 아줌마 기믹 (아줌마 건너뜀 → 라이프 -1)
+    const ai=customers.findIndex(x=>x.type==='아줌마');
+    if (ai!==-1&&ai<ci) {
+        const aj=customers[ai];
+        const aC=document.getElementById(`cust-${aj.uid}`);
+        if (aC) { const r=aC.getBoundingClientRect(); spawnSpeechBubble(r.left+r.width/2,r.top,aj.info.angryMsg,'angry'); }
+        customers.splice(ai,1);
+        loseLife(event.clientX, event.clientY);
+        if (!isPlaying) return;
+        ci=customers.findIndex(x=>x.uid===cUid); c=customers[ci];
+        if (!c) { renderInventory(); renderCustomers(); return; }
+    }
+
+    let success=false, gain=0, comboTrigger=false;
+    const ce=document.getElementById(`cust-${c.uid}`);
+    const rect=ce?ce.getBoundingClientRect():{left:event.clientX,top:event.clientY,width:0};
+
+    switch(c.type) {
+
+        // ── 유치원생: 정확히 +1 이상 ──
+        case '유치원생': {
+            if (given.length >= c.order.length+1 && checkContainsAll(given, c.order)) {
+                success=true;
+                gain=c.order.length*400 + 400; // +1 덤 포함
+                comboTrigger = given.length > c.order.length+1; // 2개 이상 더 줘야 콤보
+            }
+            break;
+        }
+
+        // ── 할아버지: 탄 거 금지, 초과 허용 ──
+        case '할아버지': {
+            if (given.includes('탄')) {
+                c.time=-1;
+                spawnSpeechBubble(rect.left+rect.width/2,rect.top,c.info.burntMsg||c.info.angryMsg,'angry');
+                loseLife(event.clientX,event.clientY);
+                renderCustomers(); renderInventory(); renderCustomers(); return;
+            }
+            if (checkContainsAll(given, c.order)) {
+                success=true; gain=c.order.length*600;
+                comboTrigger = given.length > c.order.length;
+            }
+            break;
+        }
+
+        // ── 뚱띵: 수량 정확히 (맛 무관) ──
+        case '뚱띵': {
+            if (given.length===c.order.length) { success=true; gain=c.order.length*500; }
+            break;
+        }
+
+        // ── 외계인: 정확히 3개 ──
+        case '외계인': {
+            if (given.length===3) { success=true; gain=3000; }
+            break;
+        }
+
+        // ── 신사: 수량 정확히 ──
+        case '신사': {
+            if (given.length===c.order.length && checkContainsAll(given,c.order)) { success=true; gain=c.order.length*700; }
+            break;
+        }
+
+        // ── 거지: 초과 허용, 돈 없음 ──
+        case '거지': {
+            if (checkContainsAll(given,c.order)) {
+                success=true; gain=0;
+                comboTrigger = given.length > c.order.length;
+            }
+            break;
+        }
+
+        // ── 기본 (아줌마/변덕쟁이/깡패/미녀아가씨 등): 초과 허용 ──
+        default: {
+            if (checkContainsAll(given, c.order)) {
+                success=true; gain=c.order.length*500;
+                comboTrigger = given.length > c.order.length;
+            }
+        }
+    }
+
+    if (success) {
+        // 콤보 팁 적용
+        const tip = combo*500;
+        gain += tip;
+
+        // 콤보 트리거 처리
+        if (comboTrigger) {
+            triggerCombo(event.clientX, event.clientY);
+            // 콤보 알림 말풍선
+            const newCombo = combo; // triggerCombo 이후이므로 이미 증가됨
+            setTimeout(()=>{
+                spawnSpeechBubble(rect.left+rect.width/2, rect.top-30, `🔥 콤보 ×${newCombo}! +${newCombo*500}원 팁!`, 'combo');
+            }, 150);
+        } else if (tip>0) {
+            // 콤보 팁만 표시
+            setTimeout(()=>{
+                spawnSpeechBubble(rect.left+rect.width/2, rect.top-30, `⭐ 팁 +${tip}원!`, 'combo');
+            }, 150);
+        }
+
+        score+=gain;
+        if (gameMode==='endless') stageTimeLeft+=given.length;
+        updateDashboard();
+
+        // ── 스테이지 모드: 목표 금액 초과 시 즉시 다음 단계 ──
+        if (gameMode==='stage' && isPlaying && score >= stageConfigs[currentStage].target) {
+            inventory=inventory.filter(i=>!i.selected);
+            spawnSpeechBubble(rect.left+rect.width/2,rect.top,c.info.buyMsg,'happy');
+            customers.splice(ci,1);
+            playServeSound(); spawnParticles(event.clientX,event.clientY,true);
+            renderInventory(); renderCustomers();
+            autoAdvanceStage();
+            return;
+        }
+
+        inventory=inventory.filter(i=>!i.selected);
+        spawnSpeechBubble(rect.left+rect.width/2,rect.top,c.info.buyMsg,'happy');
+        customers.splice(ci,1);
+        playServeSound(); spawnParticles(event.clientX,event.clientY,true);
+
+
+    } else {
+        // ── 오답: 라이프 -1 ──
+        playFailSound();
+        c.time-=5;
+        spawnSpeechBubble(rect.left+rect.width/2,rect.top,'내가 주문한 게 아니잖아!','angry');
+        spawnParticles(event.clientX,event.clientY,false);
+        loseLife(event.clientX,event.clientY);
+        if (!isPlaying) { renderInventory(); renderCustomers(); return; }
+    }
+    renderInventory(); renderCustomers();
+}
+
+// ════════════════════════════════════════
+//  도구 / 틀 / 인벤토리
+// ════════════════════════════════════════
+function selectTool(tool) {
+    currentTool=tool;
+    document.querySelectorAll('.tool-btn').forEach(b=>b.classList.remove('active'));
+    document.getElementById('tool-'+tool).classList.add('active');
+}
+
+function handleMoldClick(index) {
+    if (!isPlaying) return;
+    const m=molds[index];
+    if (m.state==='broken'){m.fixCount--;if(m.fixCount<=0)m.state=0;playBakeSound();renderMolds();return;}
+    if (m.dusty){m.dusty=false;playBakeSound();renderMolds();return;}
+    if      (m.state===0){m.state=1;playBakeSound();}
+    else if (m.state===1){m.flavor=currentTool;m.state=2;playBakeSound();}
+    else if (m.state===2){
+        m.state=3;playBakeSound();
+        const g=gameGen;
+        m.timer=setTimeout(()=>{
+            if(g!==gameGen)return;const mm=molds[index];if(!mm||mm.state!==3)return;
+            mm.state=4;renderMolds();
+            mm.burnTimer=setTimeout(()=>{
+                if(g!==gameGen)return;const mm2=molds[index];if(!mm2||mm2.state!==4)return;
+                mm2.state=5;renderMolds();
+            },3000);
+        },4000);
+    }
+    else if (m.state===4||m.state===5){
+        if(inventory.length>=16)return;
+        clearTimeout(m.timer);clearTimeout(m.burnTimer);
+        inventory.push({id:nextInvId++,flavor:m.state===5?'탄':m.flavor,selected:false});
+        m.state=0;m.flavor=null;renderInventory();
+    }
+    renderMolds();
+}
+
+function renderMolds() {
+    const ct=document.getElementById('molds-container'); ct.innerHTML='';
+    molds.forEach((m,idx)=>{
+        const div=document.createElement('div');
+        div.className=`mold ${m.state>=1&&m.state<=4?'batter-filled':''} ${m.dusty?'dusty':''} ${m.state==='broken'?'broken':''}`;
+        div.onclick=()=>handleMoldClick(idx);
+        const cont=document.createElement('div'); cont.className='mold-content';
+        if      (m.state==='broken') cont.innerHTML=`<div style="color:#ffeb3b;font-weight:bold;font-size:11px;text-align:center;line-height:1.2;background:rgba(0,0,0,0.6);padding:3px 6px;border-radius:6px;">💥고장!<br>🔨${m.fixCount}회</div>`;
+        else if (m.state===2) cont.innerHTML=`<img src="${flavorData[m.flavor].url}" class="filling-img" data-fallback="${flavorData[m.flavor].emoji}" onerror="handleImageError(this)">`;
+        else if (m.state===3) cont.innerHTML=`<div class="baking-text">⏳</div>`;
+        else if (m.state===4) cont.innerHTML=`<img src="${imgCompleted}" class="bread-img" data-fallback="🐟" onerror="handleImageError(this)">`;
+        else if (m.state===5) cont.innerHTML=`<img src="${imgCompleted}" class="bread-img burnt-img" data-fallback="◼️" onerror="handleImageError(this)">`;
+        div.appendChild(cont); ct.appendChild(div);
+    });
+}
+
+function toggleInventory(id) {
+    if (!isPlaying) return;
+    const it=inventory.find(i=>i.id===id); if(it)it.selected=!it.selected; renderInventory();
+}
+function trashSelected(event) {
+    const sel=inventory.filter(i=>i.selected);
+    if(sel.length){playFailSound();spawnParticles(event.clientX,event.clientY,false);}
+    inventory=inventory.filter(i=>!i.selected); renderInventory();
+}
+function renderInventory() {
+    document.getElementById('inventory-list').innerHTML=inventory.map(i=>`
+        <div class="inventory-item ${i.selected?'selected':''}" onclick="toggleInventory(${i.id})">
+            <img src="${imgCompleted}" class="${i.flavor==='탄'?'burnt-img':''}" data-fallback="🐟" onerror="handleImageError(this)">
+            <span>${i.flavor}</span>
+        </div>`).join('');
+}
+
+init();
+</script>
+</body>
+</html>
