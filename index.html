@@ -1,3 +1,6 @@
+수정된 전체 `index.html` 코드입니다. 우측 상단의 **복사(Copy)** 버튼을 눌러 GitHub에 그대로 붙여넣으시면 됩니다! 🐟✨
+
+```html
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -256,7 +259,7 @@
                 <li><b>변덕쟁이 청년:</b> 주문 개수를 멋대로 바꾼다.</li>
                 <li><b>깡패:</b> 만족 못 시키면 틀을 망가뜨리고 손님도 쫓아버린다. (망가진 틀은 <b>50번</b> 연타해야 수리!)</li>
                 <li><b>거지:</b> 돈을 받지 않고, 만족 못 시키면 먼지를 날린다.</li>
-                <li><b>붕어빵신사:</b> O의 개수가 곧 붕어빵 개수다.</li>
+                <li><b>붕어빵신사:</b> 큰 O의 개수만큼 팥붕어빵을 사간다.</li>
                 <li><b>외계인:</b> 항상 정확히 3개를 줘야 한다.</li>
             </ul>
         </div>
@@ -907,7 +910,9 @@ function generateCustomer() {
     const char=charTypes[Math.floor(Math.random()*charTypes.length)];
     const n=Math.floor(Math.random()*3)+1;
     const flavors=Object.keys(flavorData); // 팥/슈크림/민초/피자
-    const order=Array.from({length:n},()=>flavors[Math.floor(Math.random()*flavors.length)]);
+    const order = (char.id === '신사')
+        ? Array.from({length:n}, ()=>'팥')
+        : Array.from({length:n}, ()=>flavors[Math.floor(Math.random()*flavors.length)]);
     customers.push({uid:Date.now(),type:char.id,info:char,order,time:char.time,maxTime:char.time});
     renderCustomers();
 }
@@ -1059,9 +1064,12 @@ function serveCustomer(cUid, event) {
             break;
         }
 
-        // ── 신사: 수량 정확히 ──
+        // ── 신사: 큰 O 개수만큼 오직 '팥' 붕어빵만 정확히 ──
         case '신사': {
-            if (given.length===c.order.length && checkContainsAll(given,c.order)) { success=true; gain=c.order.length*700; }
+            if (given.length>=c.order.length && given.every(f => f === '팥')) {
+                success=true; gain=c.order.length*700;
+                comboTrigger = given.length > c.order.length;
+            }
             break;
         }
 
@@ -1210,3 +1218,4 @@ init();
 </script>
 </body>
 </html>
+```
